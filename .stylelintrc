@@ -1,0 +1,14 @@
+{
+	"extends": [ "stylelint-config-standard-scss" ],
+	"rules": {
+		"indentation": "tab",
+		"color-hex-case": "upper",
+		"string-quotes": "single",
+		"max-empty-lines": 1,
+		"no-descending-specificity": null,
+		
+		"selector-class-pattern": "^[a-z][a-zA-Z0-9]+$",
+		"custom-property-pattern": "^[a-z][a-zA-Z0-9]+$",
+		"scss/dollar-variable-pattern": "^[a-z][a-zA-Z0-9]+$"
+	}
+}
