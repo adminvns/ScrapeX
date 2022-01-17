@@ -7,25 +7,17 @@ puppeteer.use(StealthPlugin());
 let browser = null,
 	page = null;
 
-const user = {
-		username: null,
-		experience: [],
-		education: [],
-		skills: [],
-		accomplishments: []
-	},
-	setupBrowser = async () => {
+const setupBrowser = async () => {
 		return new Promise(async (resolve, reject) => {
 			try {
 				if (browser) {
 					return resolve();
 				}
 				browser = await puppeteer.launch({
-					headless: false,
+					headless: true,
 					userDataDir: '.chrome',
 					args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
 				});
-				page = await browser.newPage();
 				return resolve();
 			}
 			catch (err) { reject(err); }
@@ -42,12 +34,12 @@ const user = {
 					return reject('Missing bot credentials');
 				}
 
+				page = await browser.newPage();
 				await page.goto(loginURL, { waitUntil: 'domcontentloaded' });
 				if (page.url() != loginURL) {
-					console.log('Already logged in');
 					return resolve();
 				}
-				console.log('Logging in');
+
 				await page.click('#username');
 				await page.keyboard.type(username);
 				await page.click('#password');
@@ -62,7 +54,89 @@ const user = {
 	scrapeExperience = async (pageURL) => {
 		return new Promise(async (resolve, reject) => {
 			try {
-				await page.goto(pageURL('experience'), { waitUntil: 'domcontentloaded' });
+				await page.goto(`${pageURL}/experience`, { waitUntil: 'domcontentloaded' });
+				await page.waitForSelector('#main li[id^=profilePagedListComponent]', { visible: true });
+				const $ = cheerio.load(await page.content());
+
+				return resolve($('#main li[id^=profilePagedListComponent]').map(function () {
+					const elementValue = (i) => $($(this).find('span.visually-hidden').get(i)).text().trim(),
+						roleName = $(this).find('span.t-bold .visually-hidden').text().trim(),
+						[companyName, roleType] = elementValue(1).split(' · '),
+						[dateRange, duration] = elementValue(2).split(' · ');
+
+					return {
+						name: companyName,
+						role: { name: roleName, type: roleType },
+						tenure: { range: dateRange, duration },
+						location: elementValue(3),
+						description: elementValue(4)
+					};
+				}).get());
+			}
+			catch (err) { reject(err); }
+		});
+	},
+	scrapeEducation = async (pageURL) => {
+		return new Promise(async (resolve, reject) => {
+			try {
+				await page.goto(`${pageURL}/education`, { waitUntil: 'domcontentloaded' });
+				await page.waitForSelector('#main li[id^=profilePagedListComponent]', { visible: true });
+				const $ = cheerio.load(await page.content());
+
+				return resolve($('#main li[id^=profilePagedListComponent]').map(function () {
+					return {
+						school: $(this).find('span.t-bold .visually-hidden').text().trim(),
+						degree: $(this).find('span.t-14.t-normal:not(.t-black--light) .visually-hidden').text().trim(),
+						dateRange: $(this).find('span.t-14.t-normal.t-black--light .visually-hidden').text().trim()
+					};
+				}).get());
+			}
+			catch (err) { reject(err); }
+		});
+	},
+	scrapeAwards = async (pageURL) => {
+		return new Promise(async (resolve, reject) => {
+			try {
+				await page.goto(`${pageURL}/honors`, { waitUntil: 'domcontentloaded' });
+				await page.waitForSelector('#main li[id^=profilePagedListComponent]', { visible: true });
+				const $ = cheerio.load(await page.content());
+
+				return resolve($('#main li[id^=profilePagedListComponent]').map(function () {
+					const [issuer, date] = $(this).find('span.t-14.t-normal .visually-hidden').text().trim().split(' · ');
+					return {
+						title: $(this).find('span.t-bold .visually-hidden').text().trim(),
+						description: $(this).find('ul > li div.t-14.t-normal.t-black .visually-hidden').text().trim(),
+						issuer,
+						date
+					};
+				}).get());
+			}
+			catch (err) { reject(err); }
+		});
+	},
+	scrapeLanguages = async (pageURL) => {
+		return new Promise(async (resolve, reject) => {
+			try {
+				await page.goto(`${pageURL}/languages`, { waitUntil: 'domcontentloaded' });
+				await page.waitForSelector('#main li[id^=profilePagedListComponent]', { visible: true });
+				const $ = cheerio.load(await page.content());
+
+				return resolve($('#main li[id^=profilePagedListComponent]').map(function () {
+					return {
+						name: $(this).find('span.t-bold .visually-hidden').text().trim(),
+						fluency: $(this).find('span.t-14.t-normal.t-black--light .visually-hidden').text().trim()
+					};
+				}).get());
+			}
+			catch (err) { reject(err); }
+		});
+	},
+	closeBrowser = async (pageURL) => {
+		return new Promise(async (resolve, reject) => {
+			try {
+				await browser.close();
+				browser = null;
+				page = null;
 				return resolve();
 			}
 			catch (err) { reject(err); }
@@ -72,83 +146,25 @@ const user = {
 export const linkedInScraper = async (botCredentials, handle) => {
 	return new Promise(async (resolve, reject) => {
 		try {
-			console.log('Scraping');
 			if (!handle) {
 				return reject('No linkedin handle provided');
 			}
 
-			const getSectionURL = (section) => `https://www.linkedin.com/in/${handle}/details/${section}`;
+			const user = { handle },
+				sectionURL = `https://www.linkedin.com/in/${handle}/details`;
 
 			await setupBrowser();
 			await performAuthentication(botCredentials);
 
-			// await scrapeExperience(getSectionURL);
-
-
-			await page.goto(`https://www.linkedin.com/in/${handle}`, { waitUntil: 'domcontentloaded' });
-			await page.waitForSelector('#main ul.display-flex.flex-row.flex-wrap', { visible: true });
-			const $ = cheerio.load(await page.content());
-
-			user.username = handle;
-
-			$('#main > section > div > ul').each(function () {
-				const isSection = (element) => $(this).parent().parent().find('div h2').text().trim().toLowerCase().includes(element);
-
-				if (isSection('experience')) {
-					user.experience = $(this).find('> li').map(function () {
-						const elementValue = (i) => $($(this).find('span.visually-hidden').get(i)).text().trim(),
-							roleName = elementValue(0),
-							[companyName, roleType] = elementValue(1).split(' · '),
-							[dateRange, duration] = elementValue(2).split(' · '),
-							location = elementValue(3),
-							description = elementValue(4);
-
-						return {
-							name: companyName,
-							role: { name: roleName, type: roleType },
-							dateRange: { range: dateRange, duration },
-							location,
-							description
-						};
-					}).get();
-				}
-				if (isSection('education')) {
-					user.education = $(this).find('> li').map(function () {
-						return {
-							school: $(this).find('span.t-bold .visually-hidden').text().trim(),
-							degree: $(this).find('span.t-14.t-normal:not(.t-black--light) .visually-hidden').text().trim(),
-							dateRange: $(this).find('span.t-14.t-normal.t-black--light .visually-hidden').text().trim()
-						};
-					}).get();
-				}
-
-				if (isSection('honors & awards')) {
-					user.education = $(this).find('> li').map(function () {
-						return {
-							school: $(this).find('span.t-bold .visually-hidden').text().trim(),
-							degree: $(this).find('span.t-14.t-normal:not(.t-black--light) .visually-hidden').text().trim(),
-							dateRange: $(this).find('span.t-14.t-normal.t-black--light .visually-hidden').text().trim()
-						};
-					}).get();
-				}
-			});
-
-			user.username = handle;
-
-			// user.experience = experience.map((i, item) => {
-			// 	console.log(i, item);
-			// 	const name = $(item).find('.pv-entity__secondary-title.t-14').contents().first().text().trim(),
-			// 		role = $(item).find('h3.t-16.t-black.t-bold').text(),
-			// 		dateRange = $(item).find('div.display-flex > h4:nth-child(1) > span:nth-child(2)').text(),
-			// 		duration = $(item).find('div.display-flex > h4:nth-child(2) > span:nth-child(2)').text(),
-			// 		location = $(item).find('h4.pv-entity__location > span:nth-child(2)').text();
-			// 	return { name, role, dateRange, duration, location };
-			// }).get();
+			user.experience = await scrapeExperience(sectionURL);
+			user.education = await scrapeEducation(sectionURL);
+			user.awards = await scrapeAwards(sectionURL);
+			user.languages = await scrapeLanguages(sectionURL);
 
 			console.log(JSON.stringify(user, null, 4));
-			await browser.close();
-			browser = null;
-			return resolve(user);
+
+			resolve(user);
+			return await closeBrowser();
 		}
 		catch (err) { reject(err); }
 	});
