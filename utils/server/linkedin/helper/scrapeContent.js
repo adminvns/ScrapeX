@@ -90,7 +90,7 @@ const scrapeExperience = async (page, pageURL, content) => {
 	};
 
 
-export default async function scrapeContent (page, handle) {
+export const scrapeContent = async (page, handle) => {
 	return new Promise(async (resolve, reject) => {
 		const sectionURL = `https://www.linkedin.com/in/${handle}/details`,
 			content = { handle };
@@ -107,6 +107,6 @@ export default async function scrapeContent (page, handle) {
 		}
 		catch (err) { reject(err); }
 	});
-}
+};
 
 

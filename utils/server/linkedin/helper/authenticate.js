@@ -1,4 +1,4 @@
-export default async function authenticate (page, credentials) {
+export const authenticate = async (page, credentials) => {
 	return new Promise(async (resolve, reject) => {
 		try {
 			const loginURL = 'https://www.linkedin.com/login',
@@ -34,4 +34,4 @@ export default async function authenticate (page, credentials) {
 		}
 		catch (err) { reject(err); }
 	});
-}
+};

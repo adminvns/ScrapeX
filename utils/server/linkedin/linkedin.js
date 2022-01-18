@@ -1,8 +1,8 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-import authenticate from './authenticate';
-import scrapeContent from './scrapeContent';
+import { authenticate } from './helper/authenticate';
+import { scrapeContent } from './helper/scrapeContent';
 
 puppeteer.use(StealthPlugin());
 
@@ -11,7 +11,8 @@ const setupBrowser = async () => {
 			try {
 				return resolve(await puppeteer.launch({
 					headless: process.env.NODE_ENV !== 'development',
-					userDataDir: '.chrome',
+
+					// userDataDir: '.chrome',
 					args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
 				}));
 			}
