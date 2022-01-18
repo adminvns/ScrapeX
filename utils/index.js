@@ -1,4 +1,6 @@
-let modules = {};
+let modules = {
+	...require('./functions/fetcher')
+};
 
 // Inject these modules on server side only
 if (typeof window === 'undefined') {

@@ -5,8 +5,13 @@ export default async function handler (req, res) {
 		const { handle } = req.body,
 			bot = JSON.parse(req.headers.bot);
 
-		const data = linkedInScraper(bot, handle);
-		return res.status(200).json(req.body, bot);
+		try {
+			const data = await linkedInScraper(bot, handle);
+			return res.status(200).json(data);
+		}
+		catch (err) {
+			return res.status(err?.code || 500).json(err?.message);
+		}
 	}
 	return res.status(404);
 }
