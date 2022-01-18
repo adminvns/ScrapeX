@@ -10,7 +10,7 @@ const setupBrowser = async () => {
 		return new Promise(async (resolve, reject) => {
 			try {
 				return resolve(await puppeteer.launch({
-					headless: false,
+					headless: process.env.NODE_ENV !== 'development',
 					userDataDir: '.chrome',
 					args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
 				}));
